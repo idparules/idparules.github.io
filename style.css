@@ -72,6 +72,11 @@ a { color: var(--accent); }
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   padding: 14px clamp(12px, 3vw, 28px);
+  /* Own GPU layer: stops iOS Safari from repainting the sticky header on the
+     main thread during programmatic scrolls, which made it flicker on fast
+     Prev/Next taps. */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
@@ -360,6 +365,9 @@ del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
   border-bottom: 2px solid var(--line);
   font-size: 0.78rem;
   font-weight: 600;
+  /* Own GPU layer — same iOS anti-flicker reason as .app-header. */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Narrow screens: give the two columns room by scrolling the diff horizontally.

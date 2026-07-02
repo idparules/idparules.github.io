@@ -21,6 +21,9 @@
   // Navigation over the rendered difference rows.
   var diffEls = [];
   var currentDiff = -1;
+  var navTargetIndex = null;      // logical Prev/Next cursor; null = derive from scroll
+  var navigating = false;         // true while a programmatic nav scroll settles
+  var navClearTimer = 0;
 
   // Chapter/section heading rows, for scroll-spy highlighting in the sidebar.
   var headingEls = [];
@@ -294,6 +297,7 @@
         return { el: el, type: el.classList.contains('type-chapter') ? 'chapter' : 'section', number: el.id.replace(/^(chap|sec)-/, '') };
       });
     currentDiff = -1;
+    navTargetIndex = null;
     updateHeaderOffset();
 
     // Restore a linked anchor (from a permalink or back/forward), then sync the
@@ -394,7 +398,7 @@
     return hb + ch + 6;
   }
 
-  function resetNav() { diffEls = []; currentDiff = -1; updateCounter(); }
+  function resetNav() { diffEls = []; currentDiff = -1; navTargetIndex = null; updateCounter(); }
 
   // ---------- sidebar scroll-spy ----------
 
@@ -497,33 +501,45 @@
     scrollElToLine(el);
   }
 
-  function goToIndex(i) {
-    if (!diffEls.length) return;
-    if (i < 0) i = diffEls.length - 1;          // wrap
-    else if (i >= diffEls.length) i = 0;
-    goToDiff(diffEls[i]);
+  // Index of the last difference whose top has passed the reference line — the
+  // one currently aligned at/above it. -1 at the very top (none reached yet).
+  function currentAlignedIndex() {
+    var line = topOffset() + 2;
+    var idx = -1;
+    for (var i = 0; i < diffEls.length; i++) {
+      if (diffEls[i].getBoundingClientRect().top <= line) idx = i; else break;
+    }
+    return idx;
   }
 
-  // Navigate by the current active index rather than a pixel threshold: the
-  // active row sits a hair above the reference line after alignment, which a
-  // threshold-based prev would wrongly re-select (the old "p does nothing" bug).
-  function nextDiff() {
+  // Step through differences by a logical cursor rather than re-reading live
+  // scroll positions on every tap. During a burst of Prev/Next taps the cursor
+  // advances deterministically (+/-1 each) without depending on getBoundingClientRect,
+  // which iOS Safari reports transiently mid-scroll. `navigating` keeps the scroll
+  // listener from resetting the cursor while the programmatic scroll settles.
+  function requestNav(delta) {
     if (!diffEls.length) return;
-    var a = computeActiveIndex();
-    // If the active row hasn't reached the line yet (still below it, e.g. at the
-    // very top), go to it; otherwise advance to the next one.
-    var reached = diffEls[a].getBoundingClientRect().top <= topOffset() + 1;
-    goToIndex(reached ? a + 1 : a);
+    var base = navTargetIndex !== null ? navTargetIndex : currentAlignedIndex();
+    var target = base + delta;
+    if (target < 0) target = diffEls.length - 1;         // wrap
+    else if (target >= diffEls.length) target = 0;
+    navTargetIndex = target;
+    navigating = true;
+    clearTimeout(navClearTimer);
+    navClearTimer = setTimeout(function () { navigating = false; }, 250);
+    goToDiff(diffEls[target]);
   }
 
-  function prevDiff() {
-    if (!diffEls.length) return;
-    goToIndex(computeActiveIndex() - 1);
-  }
+  function nextDiff() { requestNav(1); }
+  function prevDiff() { requestNav(-1); }
 
   function jumpToKind(kind) {
     for (var i = 0; i < diffEls.length; i++) {
-      if (diffEls[i].getAttribute('data-kind') === kind) { goToDiff(diffEls[i]); return; }
+      if (diffEls[i].getAttribute('data-kind') === kind) {
+        navTargetIndex = i; navigating = false;
+        goToDiff(diffEls[i]);
+        return;
+      }
     }
   }
 
@@ -536,9 +552,12 @@
   }
 
   // Click a heading: reflect it in the address bar and scroll it into place.
+  // A heading may not be a difference row, so let Prev/Next re-derive the cursor
+  // from the landed scroll position.
   function selectAnchor(anchor) {
     state.at = anchor;
     writeHash();
+    navTargetIndex = null; navigating = false;
     scrollToAnchor(anchor);
   }
 
@@ -642,6 +661,9 @@
         scrollScheduled = false;
         setCurrent(computeActiveIndex());
         updateTocSpy();
+        // A manual scroll (not one of our programmatic nav jumps) invalidates the
+        // Prev/Next cursor, so the next tap steps from where the user scrolled to.
+        if (!navigating) navTargetIndex = null;
       });
     }, { passive: true });
 
