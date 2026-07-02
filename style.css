@@ -40,7 +40,8 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* Navigation jumps are instant (set per-scrollTo); no global smooth scrolling,
+   which is sluggish for long jumps across this document. */
 
 body {
   margin: 0;
@@ -203,9 +204,10 @@ fieldset.control-group legend {
 .toc a:hover { background: var(--bg); }
 .toc .toc-count { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
-/* The full-document diff always uses the available width; it scrolls
-   horizontally on its own if the viewport is too narrow for two columns. */
-.changes { min-width: 0; max-width: none; overflow-x: auto; }
+/* The full-document diff uses the available width. No overflow here on desktop:
+   an overflow container would trap the sticky column header (it would stick to
+   this box instead of the viewport). Narrow screens re-enable scrolling below. */
+.changes { min-width: 0; max-width: none; }
 
 /* ---------- Chapter / section groups ---------- */
 .chapter-group { margin-bottom: 32px; }
@@ -320,10 +322,9 @@ del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
 /* ---------- Full-document side-by-side diff ---------- */
 .diff-doc {
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
   background: var(--surface);
-  min-width: 640px;             /* forces horizontal scroll rather than crushing columns */
+  /* No overflow/clip here: it would confine the sticky column header to this box
+     instead of the viewport. Narrow screens add scrolling in a media query. */
 }
 
 .diff-colhead {
@@ -336,6 +337,15 @@ del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
   border-bottom: 2px solid var(--line);
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+/* Narrow screens: give the two columns room by scrolling the diff horizontally.
+   That needs an overflow container, which is incompatible with a viewport-sticky
+   header — so the column labels scroll with the content here instead. */
+@media (max-width: 700px) {
+  .changes { overflow-x: auto; }
+  .diff-doc { min-width: 620px; }
+  .diff-colhead { position: static; }
 }
 .diff-colhead .dcell { padding: 8px 14px; color: var(--ink-soft); }
 .diff-colhead .col-tag {

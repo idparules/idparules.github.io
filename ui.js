@@ -380,7 +380,7 @@
 
   function scrollElToLine(el, behavior) {
     var y = window.scrollY + el.getBoundingClientRect().top - topOffset();
-    window.scrollTo({ top: Math.max(0, y), behavior: behavior || 'smooth' });
+    window.scrollTo({ top: Math.max(0, y), behavior: behavior || 'auto' });
   }
 
   // Scroll to a difference AND record its anchor in the address bar, so Prev/Next
@@ -428,7 +428,7 @@
   function selectAnchor(anchor) {
     state.at = anchor;
     writeHash();
-    scrollToAnchor(anchor, 'smooth');
+    scrollToAnchor(anchor, 'auto');
   }
 
   function copyAnchorLink(anchor, btn) {
