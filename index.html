@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IDPA Rulebook Diff</title>
+  <meta name="description" content="Compare two IDPA rulebook versions and see what actually changed.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#changes">Skip to changes</a>
+
+  <header class="app-header">
+    <div class="header-bar">
+      <div class="header-row">
+        <h1>IDPA Rulebook Diff</h1>
+        <p class="tagline">See what actually changed between two rulebook versions.</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="settings-toggle" class="btn-ghost settings-toggle"
+                aria-expanded="false" aria-controls="controls" title="Show comparison settings">⚙ Settings</button>
+        <div class="nav-buttons">
+          <button type="button" id="prev-diff" class="btn-ghost" title="Previous difference (Shift+F7 / p)" aria-label="Previous difference">↑ Prev</button>
+          <button type="button" id="next-diff" class="btn-ghost" title="Next difference (F7 / n)" aria-label="Next difference">Next ↓</button>
+          <span class="diff-counter" id="diff-counter" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+
+    <form class="controls" id="controls" aria-label="Comparison controls">
+      <div class="control-group versions">
+        <label>Base
+          <select id="base-select" aria-label="Base year"></select>
+        </label>
+        <span class="arrow" aria-hidden="true">→</span>
+        <label>Compare
+          <select id="compare-select" aria-label="Compare year"></select>
+        </label>
+        <button type="button" id="swap" class="btn-ghost" title="Swap base and compare">⇄ Swap</button>
+      </div>
+
+      <fieldset class="control-group toggles">
+        <legend>Ignore</legend>
+        <label><input type="checkbox" id="opt-whitespace"> Whitespace</label>
+        <label><input type="checkbox" id="opt-quotes"> Quotes &amp; dashes</label>
+        <label><input type="checkbox" id="opt-punctuation"> Punctuation</label>
+        <label><input type="checkbox" id="opt-case"> Case</label>
+      </fieldset>
+
+      <div class="control-group filter">
+        <label><input type="checkbox" id="opt-changed"> Changed rules only</label>
+      </div>
+    </form>
+
+    <div class="summary-bar" id="summary" role="status" aria-live="polite"></div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Chapters with changes"></nav>
+    <main class="changes" id="changes" tabindex="-1"></main>
+  </div>
+
+  <footer class="app-footer">
+    <p>Diffing by <a href="https://github.com/kpdecker/jsdiff" rel="noopener">jsdiff</a>.
+       Rule text shown verbatim; normalization affects comparison only.</p>
+  </footer>
+
+  <!-- jsdiff, pinned. Then the app modules (attach to window), then the UI. -->
+  <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
+  <script src="normalize.js"></script>
+  <script src="parser.js"></script>
+  <script src="diff.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
