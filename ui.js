@@ -537,6 +537,12 @@
       requestAnimationFrame(updateHeaderOffset);
     });
 
+    // Clicking the title resets to a fresh comparison with a clean address bar.
+    els.title.addEventListener('click', resetToDefaults);
+    els.title.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resetToDefaults(); }
+    });
+
     document.addEventListener('keydown', function (e) {
       if (e.key === 'F7') { e.preventDefault(); e.shiftKey ? prevDiff() : nextDiff(); return; }
       if (isTypingTarget(e.target)) return;
@@ -557,6 +563,26 @@
 
   function onControlChange() { readStateFromControls(); scheduleRecompute(); }
 
+  // Reset everything to the first-visit state: default years/toggles, no anchor,
+  // a clean address bar, and scrolled to the top.
+  function resetToDefaults() {
+    state.base = manifest.length > 1 ? manifest[manifest.length - 2] : manifest[0];
+    state.compare = manifest[manifest.length - 1];
+    state.changed = false;
+    state.at = null;
+    state.opts = { whitespace: true, quotes: true, punctuation: false, case: false };
+    pendingAnchor = null;
+
+    history.replaceState(null, '', location.pathname + location.search);
+
+    var header = document.querySelector('.app-header');
+    if (header) header.classList.remove('settings-open');
+    els.settingsToggle.setAttribute('aria-expanded', 'false');
+
+    syncControlsFromState();
+    recompute().then(function () { window.scrollTo({ top: 0, behavior: 'auto' }); });
+  }
+
   function init() {
     els = {
       base: $('base-select'), compare: $('compare-select'),
@@ -564,7 +590,7 @@
       punctuation: $('opt-punctuation'), case: $('opt-case'),
       changed: $('opt-changed'), swap: $('swap'),
       prev: $('prev-diff'), next: $('next-diff'), counter: $('diff-counter'),
-      settingsToggle: $('settings-toggle'),
+      settingsToggle: $('settings-toggle'), title: $('app-title'),
       summary: $('summary'), toc: $('toc'), changes: $('changes')
     };
 
@@ -573,11 +599,14 @@
       state.compare = manifest[manifest.length - 1];
       state.base = manifest.length > 1 ? manifest[manifest.length - 2] : manifest[0];
 
-      applyHash(readHash());
+      var params = readHash();
+      applyHash(params);
       pendingAnchor = state.at;   // honor a permalink's section/chapter anchor
       syncControlsFromState();
       bindEvents();
-      writeHash();
+      // Only touch the address bar if the URL already carried parameters; a
+      // fresh open stays clean until the user changes something.
+      if (params) writeHash();
       return recompute();
     }).then(updateHeaderOffset).catch(function (err) {
       $('changes').innerHTML = '<p class="empty-state">Failed to load manifest.json. ' +
