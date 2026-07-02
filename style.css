@@ -79,6 +79,19 @@ a { color: var(--accent); }
   will-change: transform;
 }
 
+/* iOS (class set by ui.js): the header sits at the top of the page, so its
+   sticky positioning is just a fixed header implemented with per-scroll math —
+   math iOS Safari lags on during programmatic jumps, flickering the header.
+   Render it as genuinely fixed there: viewport-anchored, no scroll-dependent
+   positioning, cannot flicker. Body padding (runtime-measured --header-h)
+   keeps the layout identical. */
+body.ios { padding-top: var(--header-h); }
+body.ios .app-header { position: fixed; top: 0; left: 0; right: 0; }
+
+/* While a Prev/Next jump settles on iOS, hide the genuinely-sticky column
+   labels (no controls in them); they reappear already in position. */
+body.ios.nav-freeze .diff-colhead { visibility: hidden; }
+
 .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
 .header-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .app-header h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }

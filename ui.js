@@ -18,12 +18,18 @@
   var manifest = [];
   var lastAlign = null;
 
+  // iOS Safari (incl. iPadOS, which masquerades as Macintosh) needs special
+  // handling: its sticky elements lag/flicker during programmatic scroll jumps.
+  var IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent) ||
+    (navigator.userAgent.indexOf('Macintosh') >= 0 && navigator.maxTouchPoints > 1);
+
   // Navigation over the rendered difference rows.
   var diffEls = [];
   var currentDiff = -1;
   var navTargetIndex = null;      // logical Prev/Next cursor; null = derive from scroll
   var navigating = false;         // true while a programmatic nav scroll settles
   var navClearTimer = 0;
+  var unfreezeTimer = 0;          // iOS: colhead re-show after a nav jump settles
 
   // Chapter/section heading rows, for scroll-spy highlighting in the sidebar.
   var headingEls = [];
@@ -52,7 +58,9 @@
 
   function debounce(fn, ms) {
     var t;
-    return function () { clearTimeout(t); t = setTimeout(fn, ms); };
+    function debounced() { clearTimeout(t); t = setTimeout(fn, ms); }
+    debounced.cancel = function () { clearTimeout(t); };
+    return debounced;
   }
 
   function compareIds(a, b) {
@@ -489,15 +497,31 @@
   // reports unreliably mid-scroll, causing the page to jerk and the header to
   // flash out when Prev/Next is tapped quickly.
   function scrollElToLine(el) {
+    // iOS: hide the (genuinely sticky) column labels while the jump settles —
+    // sticky positioning lags programmatic scrolls there and flickers. The app
+    // header is fixed on iOS (see body.ios CSS) so it needs no hiding — which
+    // matters, because Prev/Next live inside it and must stay tappable.
+    if (IS_IOS) {
+      document.body.classList.add('nav-freeze');
+      clearTimeout(unfreezeTimer);
+      unfreezeTimer = setTimeout(function () {
+        document.body.classList.remove('nav-freeze');
+      }, 180);
+    }
     el.scrollIntoView({ block: 'start', inline: 'nearest' });
   }
+
+  // Deferred so a burst of taps produces ONE history.replaceState at the end —
+  // iOS Safari both rate-limits replaceState and can twitch browser chrome when
+  // the URL changes mid-scroll.
+  var scheduleNavHashWrite = debounce(writeHash, 300);
 
   // Scroll to a difference AND record its anchor in the address bar, so Prev/Next
   // (and summary-chip jumps) keep the URL pointed at where you are.
   function goToDiff(el) {
     if (!el) return;
     var a = el.getAttribute('data-anchor');
-    if (a) { state.at = a; writeHash(); }
+    if (a) { state.at = a; scheduleNavHashWrite(); }
     scrollElToLine(el);
   }
 
@@ -719,6 +743,7 @@
     state.at = null;
     state.opts = { whitespace: true, quotes: true, punctuation: false, case: false };
     pendingAnchor = null;
+    scheduleNavHashWrite.cancel();   // a pending nav write must not resurrect the hash
 
     history.replaceState(null, '', location.pathname + location.search);
 
@@ -731,6 +756,11 @@
   }
 
   function init() {
+    // iOS: render the app header as position:fixed (see body.ios CSS). Fixed
+    // needs no per-scroll positioning, so it cannot lag or flicker on
+    // programmatic jumps the way sticky does in iOS Safari.
+    if (IS_IOS) document.body.classList.add('ios');
+
     els = {
       base: $('base-select'), compare: $('compare-select'),
       whitespace: $('opt-whitespace'), quotes: $('opt-quotes'),
