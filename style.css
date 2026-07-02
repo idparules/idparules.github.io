@@ -84,8 +84,15 @@ a { color: var(--accent); }
 
 .header-actions { display: flex; align-items: center; gap: 10px; }
 .nav-buttons { display: flex; align-items: center; gap: 6px; }
-.settings-toggle { display: none; }   /* shown only on narrow screens */
+.settings-toggle { display: inline-flex; }
 .settings-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* The settings (version pickers, ignore toggles, filter) and the summary bar
+   collapse behind the Settings button at all widths, to keep the header clean. */
+.app-header .controls,
+.app-header .summary-bar { display: none; }
+.app-header.settings-open .controls { display: flex; }
+.app-header.settings-open .summary-bar { display: flex; }
 
 .controls {
   display: flex;
@@ -206,6 +213,19 @@ fieldset.control-group legend {
 }
 .toc a:hover { background: var(--bg); }
 .toc .toc-count { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* Nested section list under a chapter. */
+.toc-sections { list-style: none; margin: 1px 0 4px; padding: 0; }
+.toc-sections a { padding-left: 18px; font-size: 0.82rem; color: var(--ink-soft); }
+.toc-sections a:hover { color: var(--ink); }
+
+/* Currently-viewed chapter/section (scroll-spy). */
+.toc a.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.toc-sections a.active { color: var(--accent); }
 
 /* The full-document diff uses the available width. No overflow here on desktop:
    an overflow container would trap the sticky column header (it would stick to
@@ -507,12 +527,8 @@ button.cell-id.link-id {
   /* No hover on touch — keep the copy-link buttons visible. */
   .link-btn { opacity: 0.7; }
 
-  /* Collapse the settings behind a toggle; keep only Prev/Next visible. */
-  .settings-toggle { display: inline-flex; }
-  .app-header .controls,
-  .app-header .summary-bar { display: none; }
-  .app-header.settings-open .controls { display: flex; }
-  .app-header.settings-open .summary-bar { display: flex; }
+  /* Settings already collapse behind the toggle at all widths; on narrow screens
+     also drop the tagline to save room. */
   .tagline { display: none; }
 }
 

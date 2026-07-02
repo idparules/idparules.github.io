@@ -3,7 +3,7 @@
  *
  * The view is an IntelliJ-style, full-document side-by-side diff: both rulebooks
  * are rendered in full for context, with matching rules aligned on the same row
- * and changes highlighted in place. Prev/Next controls (and F7 / n / p) walk the
+ * and changes highlighted in place. Prev/Next controls (and the n / p keys) walk the
  * differences. State (years, toggles, filter) lives in the URL hash as a shareable
  * permalink.
  */
@@ -22,10 +22,15 @@
   var diffEls = [];
   var currentDiff = -1;
 
+  // Chapter/section heading rows, for scroll-spy highlighting in the sidebar.
+  var headingEls = [];
+  var lastSpyChap, lastSpySec;
+
   var state = {
     base: null,
     compare: null,
     changed: false,               // false = full document (context); true = only changes
+    sections: true,               // list sections under each chapter in the sidebar
     at: null,                     // anchor (chap-N / sec-N) reflected in the address bar
     opts: { whitespace: true, quotes: true, punctuation: false, case: false }
   };
@@ -76,6 +81,7 @@
     if (params.base && manifest.indexOf(params.base) >= 0) state.base = params.base;
     if (params.cmp && manifest.indexOf(params.cmp) >= 0) state.compare = params.cmp;
     if (params.changed !== undefined) state.changed = params.changed === '1';
+    if (params.secs !== undefined) state.sections = params.secs === '1';
     if (params.ws !== undefined) state.opts.whitespace = params.ws === '1';
     if (params.q !== undefined) state.opts.quotes = params.q === '1';
     if (params.p !== undefined) state.opts.punctuation = params.p === '1';
@@ -89,6 +95,7 @@
       'base=' + encodeURIComponent(state.base),
       'cmp=' + encodeURIComponent(state.compare),
       'changed=' + (state.changed ? '1' : '0'),
+      'secs=' + (state.sections ? '1' : '0'),
       'ws=' + (o.whitespace ? '1' : '0'),
       'q=' + (o.quotes ? '1' : '0'),
       'p=' + (o.punctuation ? '1' : '0'),
@@ -135,6 +142,7 @@
     els.punctuation.checked = state.opts.punctuation;
     els.case.checked = state.opts.case;
     els.changed.checked = state.changed;
+    els.sections.checked = state.sections;
   }
 
   function readStateFromControls() {
@@ -145,6 +153,7 @@
     state.opts.punctuation = els.punctuation.checked;
     state.opts.case = els.case.checked;
     state.changed = els.changed.checked;
+    state.sections = els.sections.checked;
   }
 
   // ---------- diff-side rendering ----------
@@ -278,15 +287,20 @@
 
     els.changes.innerHTML = warnings + '<div class="diff-doc">' + colHeader + body + '</div>';
 
-    // Rebuild the navigation list from what actually rendered.
+    // Rebuild the navigation list and heading index from what actually rendered.
     diffEls = Array.prototype.slice.call(els.changes.querySelectorAll('[data-diff-index]'));
+    headingEls = Array.prototype.slice.call(els.changes.querySelectorAll('.drow.type-chapter, .drow.type-section'))
+      .map(function (el) {
+        return { el: el, type: el.classList.contains('type-chapter') ? 'chapter' : 'section', number: el.id.replace(/^(chap|sec)-/, '') };
+      });
     currentDiff = -1;
     updateHeaderOffset();
 
     // Restore a linked anchor (from a permalink or back/forward), then sync the
-    // current-difference indicator to wherever the page ends up.
-    if (pendingAnchor) { scrollToAnchor(pendingAnchor, 'auto'); pendingAnchor = null; }
+    // current-difference indicator and sidebar highlight to wherever we end up.
+    if (pendingAnchor) { scrollToAnchor(pendingAnchor); pendingAnchor = null; }
     setCurrent(computeActiveIndex());
+    refreshTocSpy();
   }
 
   function renderSummary(summary) {
@@ -318,40 +332,127 @@
   }
 
   function renderToc(rows) {
-    var counts = {};   // chapterNumber → { title, count }
+    var chapters = {};   // number → { number, title, count, sections, secOrder }
+    var order = [];
     rows.forEach(function (row) {
       var ctx = row.right || row.left;
       if (!ctx.chapter) return;
-      var n = ctx.chapter.number;
-      if (!counts[n]) counts[n] = { number: n, title: ctx.chapter.title, count: 0 };
-      if (row.kind !== 'unchanged') counts[n].count++;
+      var cn = ctx.chapter.number;
+      if (!chapters[cn]) { chapters[cn] = { number: cn, title: ctx.chapter.title, count: 0, sections: {}, secOrder: [] }; order.push(cn); }
+      var ch = chapters[cn];
+      var changed = row.kind !== 'unchanged';
+      if (changed) ch.count++;
+      if (ctx.section) {
+        var sn = ctx.section.number;
+        if (!ch.sections[sn]) { ch.sections[sn] = { number: sn, title: ctx.section.title, count: 0 }; ch.secOrder.push(sn); }
+        if (changed) ch.sections[sn].count++;
+      }
     });
-    var list = Object.keys(counts).map(function (k) { return counts[k]; })
+
+    var list = order.map(function (k) { return chapters[k]; })
       .filter(function (c) { return c.count > 0; })
       .sort(function (a, b) { return compareIds(a.number, b.number); });
 
     if (!list.length) { els.toc.innerHTML = ''; return; }
+
+    var tocLink = function (anchor, label, count) {
+      return '<a href="#' + escapeHtml(anchor) + '" data-anchor="' + escapeHtml(anchor) + '">' +
+        '<span>' + escapeHtml(label) + '</span><span class="toc-count">' + count + '</span></a>';
+    };
+
     var items = list.map(function (c) {
-      return '<li><a href="#chap-' + escapeHtml(c.number) + '" data-anchor="chap-' + escapeHtml(c.number) + '">' +
-        '<span>' + escapeHtml(c.number + ' ' + c.title) + '</span>' +
-        '<span class="toc-count">' + c.count + '</span></a></li>';
+      var secHtml = '';
+      if (state.sections) {
+        var secs = c.secOrder.map(function (k) { return c.sections[k]; })
+          .filter(function (s) { return s.count > 0; })
+          .sort(function (a, b) { return compareIds(a.number, b.number); });
+        if (secs.length) {
+          secHtml = '<ul class="toc-sections">' + secs.map(function (s) {
+            return '<li>' + tocLink('sec-' + s.number, s.number + ' ' + s.title, s.count) + '</li>';
+          }).join('') + '</ul>';
+        }
+      }
+      return '<li>' + tocLink('chap-' + c.number, c.number + ' ' + c.title, c.count) + secHtml + '</li>';
     }).join('');
+
     els.toc.innerHTML = '<h2>Chapters with changes</h2><ul>' + items + '</ul>';
   }
 
   // ---------- navigation (scroll-position based) ----------
 
   // The reference line just below the sticky header + column labels; a row is
-  // "current" once its top reaches this line.
+  // "current" once its top reaches this line. Uses offsetHeight (a stable box
+  // metric) rather than getBoundingClientRect() on the sticky header, which iOS
+  // Safari reports transiently while it re-stickies during a programmatic scroll.
   function topOffset() {
     var header = document.querySelector('.app-header');
     var colhead = els.changes.querySelector('.diff-colhead');
-    var hb = header ? header.getBoundingClientRect().bottom : 0;
-    var ch = colhead ? colhead.offsetHeight : 0;
+    var hb = header ? header.offsetHeight : 0;
+    // The column labels only occupy the reference line while they're sticky
+    // (desktop/tablet); on narrow screens they scroll away with the content.
+    var ch = (colhead && getComputedStyle(colhead).position === 'sticky') ? colhead.offsetHeight : 0;
     return hb + ch + 6;
   }
 
   function resetNav() { diffEls = []; currentDiff = -1; updateCounter(); }
+
+  // ---------- sidebar scroll-spy ----------
+
+  // Highlight the chapter/section you're currently viewing. Heading rows are in
+  // document order, so scan until the first one below the reference line; a
+  // chapter heading resets the "current section" (you've entered its preamble).
+  function updateTocSpy() {
+    if (!headingEls.length) return;
+    var line = topOffset() + 1;
+    var curChap = null, curSec = null, passed = false;
+    for (var i = 0; i < headingEls.length; i++) {
+      var h = headingEls[i];
+      if (h.el.getBoundingClientRect().top <= line) {
+        passed = true;
+        if (h.type === 'chapter') { curChap = h.number; curSec = null; }
+        else curSec = h.number;
+      } else break;
+    }
+    // At the very top (nothing scrolled past yet), highlight the first chapter.
+    if (!passed && headingEls[0]) {
+      if (headingEls[0].type === 'chapter') curChap = headingEls[0].number;
+      else curSec = headingEls[0].number;
+    }
+    if (curChap === lastSpyChap && curSec === lastSpySec) return;
+    lastSpyChap = curChap; lastSpySec = curSec;
+
+    var links = els.toc.querySelectorAll('a[data-anchor]');
+    var activeAnchor = curSec !== null ? 'sec-' + curSec : (curChap !== null ? 'chap-' + curChap : null);
+    var activeEl = null;
+    for (var j = 0; j < links.length; j++) {
+      var anc = links[j].getAttribute('data-anchor');
+      var active = anc === activeAnchor;
+      links[j].classList.toggle('active', active);
+      if (active) activeEl = links[j];
+    }
+    // The sidebar scrolls independently of the page — keep the highlighted item
+    // inside its own viewport as the highlight moves, without touching the
+    // page's scroll position.
+    scrollTocContainerTo(activeEl);
+  }
+
+  // Scroll only the .toc box's own scrollTop, computed from bounding rects so it
+  // never touches window scroll (avoids any feedback with the scroll listener).
+  function scrollTocContainerTo(el) {
+    if (!el) return;
+    var box = els.toc;
+    var boxRect = box.getBoundingClientRect();
+    var elRect = el.getBoundingClientRect();
+    var margin = 8;
+    if (elRect.top < boxRect.top + margin) {
+      box.scrollTop += elRect.top - boxRect.top - margin;
+    } else if (elRect.bottom > boxRect.bottom - margin) {
+      box.scrollTop += elRect.bottom - boxRect.bottom + margin;
+    }
+  }
+
+  // Force the highlight to reapply after the TOC is (re)rendered.
+  function refreshTocSpy() { lastSpyChap = lastSpySec = ' '; updateTocSpy(); }
 
   function updateCounter() {
     var total = diffEls.length;
@@ -378,9 +479,13 @@
     updateCounter();
   }
 
-  function scrollElToLine(el, behavior) {
-    var y = window.scrollY + el.getBoundingClientRect().top - topOffset();
-    window.scrollTo({ top: Math.max(0, y), behavior: behavior || 'auto' });
+  // Bring a row to just below the sticky header. Uses scrollIntoView (which
+  // honors the CSS scroll-margin-top on .drow) instead of computing an absolute
+  // y from window.scrollY + the sticky header's rect — both of which iOS Safari
+  // reports unreliably mid-scroll, causing the page to jerk and the header to
+  // flash out when Prev/Next is tapped quickly.
+  function scrollElToLine(el) {
+    el.scrollIntoView({ block: 'start', inline: 'nearest' });
   }
 
   // Scroll to a difference AND record its anchor in the address bar, so Prev/Next
@@ -392,22 +497,28 @@
     scrollElToLine(el);
   }
 
+  function goToIndex(i) {
+    if (!diffEls.length) return;
+    if (i < 0) i = diffEls.length - 1;          // wrap
+    else if (i >= diffEls.length) i = 0;
+    goToDiff(diffEls[i]);
+  }
+
+  // Navigate by the current active index rather than a pixel threshold: the
+  // active row sits a hair above the reference line after alignment, which a
+  // threshold-based prev would wrongly re-select (the old "p does nothing" bug).
   function nextDiff() {
     if (!diffEls.length) return;
-    var line = topOffset();
-    for (var i = 0; i < diffEls.length; i++) {
-      if (diffEls[i].getBoundingClientRect().top > line + 1) { goToDiff(diffEls[i]); return; }
-    }
-    goToDiff(diffEls[0]); // wrap to first
+    var a = computeActiveIndex();
+    // If the active row hasn't reached the line yet (still below it, e.g. at the
+    // very top), go to it; otherwise advance to the next one.
+    var reached = diffEls[a].getBoundingClientRect().top <= topOffset() + 1;
+    goToIndex(reached ? a + 1 : a);
   }
 
   function prevDiff() {
     if (!diffEls.length) return;
-    var line = topOffset();
-    for (var i = diffEls.length - 1; i >= 0; i--) {
-      if (diffEls[i].getBoundingClientRect().top < line - 1) { goToDiff(diffEls[i]); return; }
-    }
-    goToDiff(diffEls[diffEls.length - 1]); // wrap to last
+    goToIndex(computeActiveIndex() - 1);
   }
 
   function jumpToKind(kind) {
@@ -418,17 +529,17 @@
 
   // ---------- section / chapter linking ----------
 
-  function scrollToAnchor(anchor, behavior) {
+  function scrollToAnchor(anchor) {
     if (!anchor) return;
     var el = document.getElementById(anchor);
-    if (el) scrollElToLine(el, behavior);
+    if (el) scrollElToLine(el);
   }
 
   // Click a heading: reflect it in the address bar and scroll it into place.
   function selectAnchor(anchor) {
     state.at = anchor;
     writeHash();
-    scrollToAnchor(anchor, 'auto');
+    scrollToAnchor(anchor);
   }
 
   function copyAnchorLink(anchor, btn) {
@@ -521,13 +632,26 @@
       selectAnchor(a.getAttribute('data-anchor'));
     });
 
-    // Keep the current-difference indicator in sync with the scroll position.
+    // Keep the current-difference indicator and sidebar highlight in sync with
+    // the scroll position.
     var scrollScheduled = false;
     window.addEventListener('scroll', function () {
       if (scrollScheduled) return;
       scrollScheduled = true;
-      requestAnimationFrame(function () { scrollScheduled = false; setCurrent(computeActiveIndex()); });
+      requestAnimationFrame(function () {
+        scrollScheduled = false;
+        setCurrent(computeActiveIndex());
+        updateTocSpy();
+      });
     }, { passive: true });
+
+    // Toggling the sidebar section list only re-renders the sidebar, not the diff.
+    els.sections.addEventListener('change', function () {
+      state.sections = els.sections.checked;
+      writeHash();
+      if (lastAlign) renderToc(lastAlign.rows);
+      refreshTocSpy();
+    });
 
     els.settingsToggle.addEventListener('click', function () {
       var header = document.querySelector('.app-header');
@@ -544,10 +668,10 @@
     });
 
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'F7') { e.preventDefault(); e.shiftKey ? prevDiff() : nextDiff(); return; }
-      if (isTypingTarget(e.target)) return;
-      if (e.key === 'n' || e.key === 'j') { e.preventDefault(); nextDiff(); }
-      else if (e.key === 'p' || e.key === 'k') { e.preventDefault(); prevDiff(); }
+      if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      var k = (e.key || '').toLowerCase();
+      if (k === 'n') { e.preventDefault(); nextDiff(); }
+      else if (k === 'p') { e.preventDefault(); prevDiff(); }
     });
 
     window.addEventListener('resize', debounce(updateHeaderOffset, 150));
@@ -569,6 +693,7 @@
     state.base = manifest.length > 1 ? manifest[manifest.length - 2] : manifest[0];
     state.compare = manifest[manifest.length - 1];
     state.changed = false;
+    state.sections = true;
     state.at = null;
     state.opts = { whitespace: true, quotes: true, punctuation: false, case: false };
     pendingAnchor = null;
@@ -588,7 +713,7 @@
       base: $('base-select'), compare: $('compare-select'),
       whitespace: $('opt-whitespace'), quotes: $('opt-quotes'),
       punctuation: $('opt-punctuation'), case: $('opt-case'),
-      changed: $('opt-changed'), swap: $('swap'),
+      changed: $('opt-changed'), sections: $('opt-sections'), swap: $('swap'),
       prev: $('prev-diff'), next: $('next-diff'), counter: $('diff-counter'),
       settingsToggle: $('settings-toggle'), title: $('app-title'),
       summary: $('summary'), toc: $('toc'), changes: $('changes')

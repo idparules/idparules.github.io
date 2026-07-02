@@ -20,9 +20,9 @@
         <button type="button" id="settings-toggle" class="btn-ghost settings-toggle"
                 aria-expanded="false" aria-controls="controls" title="Show comparison settings">⚙ Settings</button>
         <div class="nav-buttons">
-          <button type="button" id="prev-diff" class="btn-ghost" title="Previous difference (Shift+F7 / p)" aria-label="Previous difference">↑ Prev</button>
-          <button type="button" id="next-diff" class="btn-ghost" title="Next difference (F7 / n)" aria-label="Next difference">Next ↓</button>
           <span class="diff-counter" id="diff-counter" role="status" aria-live="polite"></span>
+          <button type="button" id="prev-diff" class="btn-ghost" title="Previous difference (p)" aria-label="Previous difference">↑ Prev</button>
+          <button type="button" id="next-diff" class="btn-ghost" title="Next difference (n)" aria-label="Next difference">Next ↓</button>
         </div>
       </div>
     </div>
@@ -49,6 +49,7 @@
 
       <div class="control-group filter">
         <label><input type="checkbox" id="opt-changed"> Changed rules only</label>
+        <label><input type="checkbox" id="opt-sections"> Sections in sidebar</label>
       </div>
     </form>
 
