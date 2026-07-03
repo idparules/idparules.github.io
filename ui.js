@@ -39,6 +39,7 @@
     compare: null,
     changed: false,               // false = full document (context); true = only changes
     sections: true,               // list sections under each chapter in the sidebar
+    emphasize: false,             // underline/strikethrough + marker chars on word-level changes
     at: null,                     // anchor (chap-N / sec-N) reflected in the address bar
     opts: { whitespace: true, quotes: true, punctuation: false, case: false }
   };
@@ -60,6 +61,10 @@
     function debounced() { clearTimeout(t); t = setTimeout(fn, ms); }
     debounced.cancel = function () { clearTimeout(t); };
     return debounced;
+  }
+
+  function applyEmphasizeClass() {
+    document.body.classList.toggle('emphasize-changes', state.emphasize);
   }
 
   function compareIds(a, b) {
@@ -92,6 +97,7 @@
     if (params.cmp && manifest.indexOf(params.cmp) >= 0) state.compare = params.cmp;
     if (params.changed !== undefined) state.changed = params.changed === '1';
     if (params.secs !== undefined) state.sections = params.secs === '1';
+    if (params.em !== undefined) state.emphasize = params.em === '1';
     if (params.ws !== undefined) state.opts.whitespace = params.ws === '1';
     if (params.q !== undefined) state.opts.quotes = params.q === '1';
     if (params.p !== undefined) state.opts.punctuation = params.p === '1';
@@ -106,6 +112,7 @@
       'cmp=' + encodeURIComponent(state.compare),
       'changed=' + (state.changed ? '1' : '0'),
       'secs=' + (state.sections ? '1' : '0'),
+      'em=' + (state.emphasize ? '1' : '0'),
       'ws=' + (o.whitespace ? '1' : '0'),
       'q=' + (o.quotes ? '1' : '0'),
       'p=' + (o.punctuation ? '1' : '0'),
@@ -153,6 +160,7 @@
     els.case.checked = state.opts.case;
     els.changed.checked = state.changed;
     els.sections.checked = state.sections;
+    els.emphasize.checked = state.emphasize;
   }
 
   function readStateFromControls() {
@@ -164,6 +172,7 @@
     state.opts.case = els.case.checked;
     state.changed = els.changed.checked;
     state.sections = els.sections.checked;
+    state.emphasize = els.emphasize.checked;
   }
 
   // ---------- diff-side rendering ----------
@@ -691,6 +700,14 @@
       refreshTocSpy();
     });
 
+    // Purely a CSS toggle — no re-render or recompute needed, the diff markup
+    // and its normalized comparison are unaffected.
+    els.emphasize.addEventListener('change', function () {
+      state.emphasize = els.emphasize.checked;
+      writeHash();
+      applyEmphasizeClass();
+    });
+
     els.settingsToggle.addEventListener('click', function () {
       var header = document.querySelector('.app-header');
       var open = header.classList.toggle('settings-open');
@@ -732,6 +749,7 @@
     state.compare = manifest[manifest.length - 1];
     state.changed = false;
     state.sections = true;
+    state.emphasize = false;
     state.at = null;
     state.opts = { whitespace: true, quotes: true, punctuation: false, case: false };
     pendingAnchor = null;
@@ -744,6 +762,7 @@
     els.settingsToggle.setAttribute('aria-expanded', 'false');
 
     syncControlsFromState();
+    applyEmphasizeClass();
     recompute().then(function () { window.scrollTo({ top: 0, behavior: 'auto' }); });
   }
 
@@ -757,7 +776,7 @@
       base: $('base-select'), compare: $('compare-select'),
       whitespace: $('opt-whitespace'), quotes: $('opt-quotes'),
       punctuation: $('opt-punctuation'), case: $('opt-case'),
-      changed: $('opt-changed'), sections: $('opt-sections'), swap: $('swap'),
+      changed: $('opt-changed'), sections: $('opt-sections'), emphasize: $('opt-emphasize'), swap: $('swap'),
       prev: $('prev-diff'), next: $('next-diff'), counter: $('diff-counter'),
       settingsToggle: $('settings-toggle'), title: $('app-title'),
       versionMeta: $('version-meta'),
@@ -773,6 +792,7 @@
       applyHash(params);
       pendingAnchor = state.at;   // honor a permalink's section/chapter anchor
       syncControlsFromState();
+      applyEmphasizeClass();
       bindEvents();
       // Only touch the address bar if the URL already carried parameters; a
       // fresh open stays clean until the user changes something.

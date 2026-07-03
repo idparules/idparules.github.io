@@ -284,85 +284,6 @@ fieldset.control-group legend {
   font-weight: 600;
 }
 
-/* ---------- Change cards ---------- */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left-width: 4px;
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  margin: 10px 0;
-}
-.card.added    { border-left-color: var(--added-line); }
-.card.removed  { border-left-color: var(--removed-line); }
-.card.modified { border-left-color: var(--modified-line); }
-.card.moved    { border-left-color: var(--moved-line); }
-.card.unchanged{ border-left-color: var(--line); opacity: 0.85; }
-
-.card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-
-.badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-.badge.added    { background: var(--added-bg);    color: var(--added-ink); }
-.badge.removed  { background: var(--removed-bg);  color: var(--removed-ink); }
-.badge.modified { background: var(--modified-bg); color: var(--modified-ink); }
-.badge.moved    { background: var(--moved-bg);    color: var(--moved-ink); }
-.badge.unchanged{ background: var(--bg);          color: var(--ink-soft); }
-
-.rule-id {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--ink-soft);
-  background: var(--bg);
-  padding: 2px 7px;
-  border-radius: 5px;
-  border: 1px solid var(--line);
-}
-.rule-kind-note { font-size: 0.8rem; color: var(--ink-soft); }
-
-.rule-body { max-width: var(--measure); }
-/* In split view the two-column grid must be free to fill the wider card; each
-   column then caps its own text at the readable measure. */
-body.view-sbs .rule-body { max-width: none; }
-body.view-sbs .sbs .col .rule-text { max-width: var(--measure); }
-.rule-text { margin: 0; white-space: pre-wrap; }
-
-/* Inline diff */
-ins.diff, del.diff { text-decoration: none; padding: 0 1px; border-radius: 3px; }
-ins.diff {
-  background: var(--added-bg);
-  color: var(--added-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-}
-del.diff {
-  background: var(--removed-bg);
-  color: var(--removed-ink);
-  text-decoration: line-through;
-}
-/* Non-color cue: markers readable by screen readers and color-blind users. */
-ins.diff::before { content: "‸"; font-size: 0.7em; vertical-align: super; }
-del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
-
-/* Side-by-side */
-.sbs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.sbs .col h4 {
-  margin: 0 0 4px;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-soft);
-}
-.sbs .col-old { border-left: 2px solid var(--removed-line); padding-left: 10px; }
-.sbs .col-new { border-left: 2px solid var(--added-line); padding-left: 10px; }
-
 .empty-state {
   color: var(--ink-soft);
   padding: 40px 0;
@@ -503,19 +424,24 @@ button.cell-id.link-id {
   z-index: 6;
 }
 
-/* Inline word-level markers (shared with the legacy styles above). */
+/* Word-level change highlighting: color + background tint by default. */
 .diff-doc ins.diff, .diff-doc del.diff { text-decoration: none; padding: 0 1px; border-radius: 3px; }
 .diff-doc ins.diff {
   background: color-mix(in srgb, var(--added-bg) 70%, transparent);
   color: var(--added-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
 }
 .diff-doc del.diff {
   background: color-mix(in srgb, var(--removed-bg) 70%, transparent);
   color: var(--removed-ink);
-  text-decoration: line-through;
 }
+
+/* "Emphasize changes" setting (default off): layers on underline/strikethrough
+   plus a leading marker character, so changes don't rely on color alone —
+   helpful for colorblind users, low-contrast displays, or just faster scanning. */
+body.emphasize-changes .diff-doc ins.diff { text-decoration: underline; text-decoration-thickness: 2px; }
+body.emphasize-changes .diff-doc del.diff { text-decoration: line-through; }
+body.emphasize-changes .diff-doc ins.diff::before { content: "‸"; font-size: 0.7em; vertical-align: super; }
+body.emphasize-changes .diff-doc del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
 
 /* ---------- Footer ---------- */
 .app-footer {
