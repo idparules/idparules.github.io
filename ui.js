@@ -29,7 +29,6 @@
   var navTargetIndex = null;      // logical Prev/Next cursor; null = derive from scroll
   var navigating = false;         // true while a programmatic nav scroll settles
   var navClearTimer = 0;
-  var unfreezeTimer = 0;          // iOS: colhead re-show after a nav jump settles
 
   // Chapter/section heading rows, for scroll-spy highlighting in the sidebar.
   var headingEls = [];
@@ -265,6 +264,18 @@
     return escapeHtml(bits.join(' · '));
   }
 
+  // Base/Compare version details, shown in the Settings panel instead of a
+  // second sticky bar above the diff (that bar was a second scroll-position-
+  // dependent element competing with the header — dropping it removes a whole
+  // class of iOS Safari stickiness lag/flicker).
+  function renderVersionMeta() {
+    if (!els.versionMeta) return;
+    els.versionMeta.innerHTML =
+      '<span class="col-tag">Base</span> ' + metaLine(state.base) +
+      '<span class="version-sep">→</span>' +
+      '<span class="col-tag">Compare</span> ' + metaLine(state.compare);
+  }
+
   // ---------- main render ----------
 
   function render() {
@@ -273,11 +284,7 @@
 
     renderSummary(summary);
     renderToc(al.rows);
-
-    var colHeader = '<div class="diff-colhead">' +
-      '<div class="dcell left"><span class="col-tag">Base</span> ' + metaLine(state.base) + '</div>' +
-      '<div class="dcell right"><span class="col-tag">Compare</span> ' + metaLine(state.compare) + '</div>' +
-      '</div>';
+    renderVersionMeta();
 
     var warnings = warningsHtml();
 
@@ -296,7 +303,7 @@
       return;
     }
 
-    els.changes.innerHTML = warnings + '<div class="diff-doc">' + colHeader + body + '</div>';
+    els.changes.innerHTML = warnings + '<div class="diff-doc">' + body + '</div>';
 
     // Rebuild the navigation list and heading index from what actually rendered.
     diffEls = Array.prototype.slice.call(els.changes.querySelectorAll('[data-diff-index]'));
@@ -392,18 +399,13 @@
 
   // ---------- navigation (scroll-position based) ----------
 
-  // The reference line just below the sticky header + column labels; a row is
-  // "current" once its top reaches this line. Uses offsetHeight (a stable box
-  // metric) rather than getBoundingClientRect() on the sticky header, which iOS
-  // Safari reports transiently while it re-stickies during a programmatic scroll.
+  // The reference line just below the sticky/fixed header; a row is "current"
+  // once its top reaches this line. Uses offsetHeight (a stable box metric)
+  // rather than getBoundingClientRect() on the sticky header, which iOS Safari
+  // reports transiently while it re-stickies during a programmatic scroll.
   function topOffset() {
     var header = document.querySelector('.app-header');
-    var colhead = els.changes.querySelector('.diff-colhead');
-    var hb = header ? header.offsetHeight : 0;
-    // The column labels only occupy the reference line while they're sticky
-    // (desktop/tablet); on narrow screens they scroll away with the content.
-    var ch = (colhead && getComputedStyle(colhead).position === 'sticky') ? colhead.offsetHeight : 0;
-    return hb + ch + 6;
+    return (header ? header.offsetHeight : 0) + 6;
   }
 
   function resetNav() { diffEls = []; currentDiff = -1; navTargetIndex = null; updateCounter(); }
@@ -497,17 +499,6 @@
   // reports unreliably mid-scroll, causing the page to jerk and the header to
   // flash out when Prev/Next is tapped quickly.
   function scrollElToLine(el) {
-    // iOS: hide the (genuinely sticky) column labels while the jump settles —
-    // sticky positioning lags programmatic scrolls there and flickers. The app
-    // header is fixed on iOS (see body.ios CSS) so it needs no hiding — which
-    // matters, because Prev/Next live inside it and must stay tappable.
-    if (IS_IOS) {
-      document.body.classList.add('nav-freeze');
-      clearTimeout(unfreezeTimer);
-      unfreezeTimer = setTimeout(function () {
-        document.body.classList.remove('nav-freeze');
-      }, 180);
-    }
     el.scrollIntoView({ block: 'start', inline: 'nearest' });
   }
 
@@ -616,6 +607,7 @@
       els.changes.innerHTML = '<p class="empty-state">Pick two different years to compare.</p>';
       els.summary.innerHTML = '';
       els.toc.innerHTML = '';
+      if (els.versionMeta) els.versionMeta.innerHTML = '';
       resetNav();
       return Promise.resolve();
     }
@@ -768,6 +760,7 @@
       changed: $('opt-changed'), sections: $('opt-sections'), swap: $('swap'),
       prev: $('prev-diff'), next: $('next-diff'), counter: $('diff-counter'),
       settingsToggle: $('settings-toggle'), title: $('app-title'),
+      versionMeta: $('version-meta'),
       summary: $('summary'), toc: $('toc'), changes: $('changes')
     };
 

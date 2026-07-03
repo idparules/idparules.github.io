@@ -88,10 +88,6 @@ a { color: var(--accent); }
 body.ios { padding-top: var(--header-h); }
 body.ios .app-header { position: fixed; top: 0; left: 0; right: 0; }
 
-/* While a Prev/Next jump settles on iOS, hide the genuinely-sticky column
-   labels (no controls in them); they reappear already in position. */
-body.ios.nav-freeze .diff-colhead { visibility: hidden; }
-
 .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px 20px; flex-wrap: wrap; }
 .header-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .app-header h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
@@ -121,6 +117,27 @@ body.ios.nav-freeze .diff-colhead { visibility: hidden; }
 }
 
 .control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Base/Compare version details — shown in Settings instead of a sticky bar
+   pinned above the diff. */
+.version-meta {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-top: -4px;
+}
+.version-meta .col-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.version-meta .version-sep { color: var(--line); }
 fieldset.control-group {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -368,35 +385,10 @@ del.diff::before { content: "\2013"; font-size: 0.7em; vertical-align: super; }
      instead of the viewport. Narrow screens add scrolling in a media query. */
 }
 
-.diff-colhead {
-  position: sticky;
-  top: var(--header-h);
-  z-index: 3;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--surface);
-  border-bottom: 2px solid var(--line);
-  font-size: 0.78rem;
-  font-weight: 600;
-  /* Own GPU layer — same iOS anti-flicker reason as .app-header. */
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-/* Narrow screens: give the two columns room by scrolling the diff horizontally.
-   That needs an overflow container, which is incompatible with a viewport-sticky
-   header — so the column labels scroll with the content here instead. */
+/* Narrow screens: give the two columns room by scrolling the diff horizontally. */
 @media (max-width: 700px) {
   .changes { overflow-x: auto; }
   .diff-doc { min-width: 620px; }
-  .diff-colhead { position: static; }
-}
-.diff-colhead .dcell { padding: 8px 14px; color: var(--ink-soft); }
-.diff-colhead .col-tag {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  margin-right: 6px;
 }
 
 .drow {
