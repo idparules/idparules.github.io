@@ -80,6 +80,7 @@
       id: entry.id,
       type: entry.type,
       text: entry.text,
+      src: entry.src,
       raw: entry.raw,
       chapter: { number: chapterCtx.chapterNumber, title: chapterCtx.chapterTitle },
       section: secCtx ? { number: secCtx.sectionNumber, title: secCtx.sectionTitle } : null
@@ -273,9 +274,10 @@
   // section headings alongside rules and preamble prose, so the whole document
   // can be rendered with structure. Each block has a stable alignment `key`.
   function entryBlock(e, chapterCtx, secCtx) {
+    var prefix = e.type === 'rule' ? 'rule:' : e.type === 'figure' ? 'fig:' : 'pre:';
     return {
-      key: (e.type === 'rule' ? 'rule:' : 'pre:') + e.key,
-      type: e.type, id: e.id, text: e.text, raw: e.raw,
+      key: prefix + e.key,
+      type: e.type, id: e.id, text: e.text, src: e.src, raw: e.raw,
       chapter: chapterCtx, section: secCtx
     };
   }

@@ -1,1 +1,7 @@
-["2025", "2026"]
+{
+  "docs": [
+    { "id": "rulebook", "label": "Rulebook", "file": "IDPA-Rulebook-", "years": ["2025", "2026"] },
+    { "id": "equipment", "label": "Equipment Appendix", "file": "IDPA-Equipment-Appendix-", "years": ["2025", "2026"] },
+    { "id": "match-admin", "label": "Match Administration", "file": "IDPA-Match-Admin-", "years": ["2025", "2026"] }
+  ]
+}

@@ -1224,7 +1224,11 @@ Belts may be no wider than 1-3/4 inches or thicker than 5/16 inches and must pas
 
 8.5.2.4 Pocket carry
 
-Figure 1 - OWB Holster Positions Limits. Figure 2 - IWB Holster Position Limits. Figure 3. Demonstrating measurements per 8.5.1.6.
+![Figure 1 - OWB Holster Positions Limits](figures/2025/figure-1.png)
+
+![Figure 2 - IWB Holster Position Limits](figures/2025/figure-2.png)
+
+![Figure 3. Demonstrating measurements per 8.5.1.6.](figures/2025/figure-3.jpg)
 
 ## 8.6 Ammunition Carriers
 

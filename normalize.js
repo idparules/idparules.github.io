@@ -17,7 +17,7 @@
   var DEFAULTS = {
     whitespace: true,   // collapse runs of whitespace to one space, trim
     quotes: true,       // smart quotes/dashes/nbsp → straight ASCII equivalents
-    punctuation: false, // drop , . ; : ! ? (hyphens & slashes kept — they carry meaning)
+    punctuation: false, // drop , . ; : ! ? quotes/apostrophes/brackets; hyphens compare as spaces
     case: false         // lowercase
   };
 
@@ -50,8 +50,14 @@
   }
 
   function stripPunctuation(s) {
-    // Deliberately keep hyphens and slashes: "1-3/4 inches" must survive intact.
-    return s.replace(/[,.;:!?]/g, '');
+    // Drop marks that don't change meaning: sentence punctuation, quotes and
+    // apostrophes ("shooters" ↔ "shooters'"), brackets, footnote asterisks.
+    // Hyphens and dashes become a space so hyphenation differences compare
+    // equal ("Club-based" ↔ "Club based"). Slashes are deliberately kept:
+    // "3/4" must not collide with "34".
+    return s
+      .replace(/[,.;:!?'"‘’‚‛′“”„‟″()[\]*]/g, '')
+      .replace(/[-–—−]/g, ' ');
   }
 
   function collapseWhitespace(s) {

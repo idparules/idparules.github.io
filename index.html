@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IDPA Rulebook Diff</title>
-  <meta name="description" content="Compare two IDPA rulebook versions and see what actually changed.">
+  <title>IDPA Rules</title>
+  <meta name="description" content="Read the IDPA rulebook. Spot what changed between versions.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip-link" href="#changes">Skip to changes</a>
-
   <header class="app-header">
     <div class="header-bar">
       <div class="header-row">
-        <h1 id="app-title" role="button" tabindex="0" title="Reset to a fresh comparison">IDPA Rulebook Diff</h1>
-        <p class="tagline">See what actually changed between two rulebook versions.</p>
+        <h1 id="app-title" role="button" tabindex="0" title="Reset to a fresh comparison">IDPA Rules</h1>
+        <p class="tagline">Read the rulebook. Spot what
+          <button type="button" id="show-changed" class="tagline-link"
+                  title="Compare the latest rulebook to the previous year">changed</button>.</p>
       </div>
       <div class="header-actions">
         <button type="button" id="settings-toggle" class="btn-ghost settings-toggle"
@@ -26,6 +26,8 @@
         </div>
       </div>
     </div>
+
+    <nav class="doc-tabs" id="doc-tabs" aria-label="Document"></nav>
 
     <form class="controls" id="controls" aria-label="Comparison controls">
       <div class="control-group versions">
@@ -45,8 +47,15 @@
         <legend>Ignore</legend>
         <label><input type="checkbox" id="opt-whitespace"> Whitespace</label>
         <label><input type="checkbox" id="opt-quotes"> Quotes &amp; dashes</label>
-        <label><input type="checkbox" id="opt-punctuation"> Punctuation</label>
+        <label><input type="checkbox" id="opt-punctuation"
+                      title="Ignore commas, periods, apostrophes, and hyphenation differences (Club-based vs Club based)"> Punctuation &amp; hyphenation</label>
         <label><input type="checkbox" id="opt-case"> Case</label>
+      </fieldset>
+
+      <fieldset class="control-group toggles">
+        <legend>View</legend>
+        <label><input type="radio" name="view" id="view-sbs"> Side by side</label>
+        <label><input type="radio" name="view" id="view-uni"> Document (inline changes)</label>
       </fieldset>
 
       <div class="control-group filter">

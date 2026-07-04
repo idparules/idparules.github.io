@@ -54,16 +54,6 @@ body {
 
 a { color: var(--accent); }
 
-.skip-link {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  background: var(--surface);
-  padding: 8px 12px;
-  z-index: 10;
-}
-.skip-link:focus { left: 8px; top: 8px; }
-
 /* ---------- Header ---------- */
 .app-header {
   position: sticky;
@@ -95,9 +85,43 @@ body.ios .app-header { position: fixed; top: 0; left: 0; right: 0; }
 #app-title:hover { color: var(--accent); }
 #app-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .tagline { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+.tagline-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tagline-link:hover { color: var(--ink); }
+.tagline-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 
 .header-actions { display: flex; align-items: center; gap: 10px; }
 .nav-buttons { display: flex; align-items: center; gap: 6px; }
+
+/* Document switcher: Rulebook / Equipment Appendix / Match Administration. */
+.doc-tabs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.doc-tab {
+  appearance: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.doc-tab:hover { color: var(--ink); border-color: var(--ink-soft); }
+.doc-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.doc-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .settings-toggle { display: inline-flex; }
 .settings-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
 
@@ -130,14 +154,31 @@ body.ios .app-header { position: fixed; top: 0; left: 0; right: 0; }
   color: var(--ink-soft);
   margin-top: -4px;
 }
-.version-meta .col-tag {
+.version-meta .col-tag, .version-meta-banner .col-tag {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--accent);
   font-weight: 600;
   font-size: 0.72rem;
 }
-.version-meta .version-sep { color: var(--line); }
+.version-meta .version-sep, .version-meta-banner .version-sep { color: var(--line); }
+
+/* Same version info, repeated above the diff itself (and above any source
+   notes) so it's visible without opening Settings. Laid out as Base/Compare
+   columns, same widths as the diff rows below, so they read as one table. */
+.version-meta-banner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.version-meta-banner.uni { grid-template-columns: 1fr; }
+.version-meta-banner .dcell { border-bottom: none; }
 fieldset.control-group {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -289,14 +330,27 @@ fieldset.control-group legend {
   padding: 40px 0;
   text-align: center;
 }
+/* Source notes, same Base/Compare column layout as the version-meta banner
+   and the diff rows below. */
 .warnings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   font-size: 0.82rem;
   color: var(--ink-soft);
   border: 1px dashed var(--line);
   border-radius: var(--radius);
-  padding: 8px 12px;
   margin-bottom: 16px;
+  overflow: hidden;
 }
+.warnings.uni { grid-template-columns: 1fr; }
+.warnings .dcell { border-bottom: none; }
+.warnings-head {
+  grid-column: 1 / -1;
+  padding: 6px 12px 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.warnings-none { opacity: 0.6; font-style: italic; }
 
 /* ---------- Full-document side-by-side diff ---------- */
 .diff-doc {
@@ -306,11 +360,27 @@ fieldset.control-group legend {
      instead of the viewport. Narrow screens add scrolling in a media query. */
 }
 
-/* Narrow screens: give the two columns room by scrolling the diff horizontally. */
+/* Narrow screens: give the two columns room by scrolling the diff horizontally.
+   The unified view is a single column, so it never needs the extra width. */
 @media (max-width: 700px) {
   .changes { overflow-x: auto; }
   .diff-doc { min-width: 620px; }
+  .diff-doc.unified { min-width: 0; }
 }
+
+/* Unified (single-document) view: one column; removals are struck through in
+   place, so no spacer cells and no left/right split. */
+.diff-doc.unified .drow { grid-template-columns: 1fr; }
+.diff-doc.unified .drow.added .dcell { background: var(--added-bg); }
+.diff-doc.unified .drow.removed .dcell { background: var(--removed-bg); }
+.diff-doc.unified .drow.removed .cell-text,
+.diff-doc.unified .drow.removed .cell-heading {
+  text-decoration: line-through;
+  color: var(--removed-ink);
+}
+/* Inline: old and new words sit next to each other, so the removal always
+   needs its strikethrough to be readable (independent of Emphasize changes). */
+.diff-doc.unified del.diff { text-decoration: line-through; }
 
 .drow {
   display: grid;
@@ -331,14 +401,28 @@ fieldset.control-group legend {
     repeating-linear-gradient(-45deg, var(--gutter) 0 6px, transparent 6px 12px);
 }
 
-/* Rule/preamble rows: hanging id badge + text column. */
+/* Rule/preamble/figure rows: hanging id badge + text column. */
 .drow.type-rule .dcell:not(.empty),
-.drow.type-preamble .dcell:not(.empty) {
+.drow.type-preamble .dcell:not(.empty),
+.drow.type-figure .dcell:not(.empty) {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 10px;
   align-items: start;
 }
+
+/* Figure image sits under its caption, in the text column. */
+.figure-img {
+  grid-column: 2;
+  justify-self: start;
+  max-width: 100%;
+  height: auto;
+  margin-top: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.figure-img.missing { display: none; }
 
 .cell-id {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -384,27 +468,25 @@ button.cell-id.link-id {
 .drow.type-chapter .dcell:hover .cell-heading,
 .drow.type-section .dcell:hover .cell-heading { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
-.link-btn {
+/* Heading number as a copy-link button — same behavior as the rule-id badges. */
+button.hnum.link-hnum {
   appearance: none;
   border: none;
   background: transparent;
-  color: inherit;
+  font: inherit;
+  color: var(--ink-soft);
   cursor: pointer;
-  font-size: 0.82em;
-  line-height: 1;
-  padding: 1px 4px;
-  margin-left: 4px;
+  padding: 0 2px;
   border-radius: 4px;
-  opacity: 0.35;
-  vertical-align: baseline;
 }
-.drow:hover .link-btn, .link-btn:focus-visible { opacity: 1; }
-.link-btn:hover { background: var(--bg); }
+.link-hnum:hover { color: var(--accent); background: var(--bg); }
+.link-hnum:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* "Copied" confirmation tooltip — shared by the 🔗 buttons and the id badges;
+/* "Copied" confirmation tooltip — shared by the id badges and heading numbers;
    positioned so it doesn't shift layout. */
 .copied { position: relative; opacity: 1; }
 .link-id.copied { border-color: var(--added-line); color: var(--added-ink); }
+.link-hnum.copied { color: var(--added-ink); }
 .copied::after {
   content: "Copied";
   position: absolute;
@@ -463,12 +545,10 @@ body.emphasize-changes .diff-doc del.diff::before { content: "\2013"; font-size:
     background: var(--surface);
   }
 
-  /* No hover on touch — keep the copy-link buttons visible. */
-  .link-btn { opacity: 0.7; }
-
-  /* Settings already collapse behind the toggle at all widths; on narrow screens
-     also drop the tagline to save room. */
-  .tagline { display: none; }
+  /* Keep the tagline visible even when narrow; let it wrap under the title.
+     The actions (settings + prev/next) stay pinned to the right via margin. */
+  .header-row { flex: 1 1 auto; min-width: 0; }
+  .header-actions { margin-left: auto; }
 }
 
 @media (max-width: 420px) {

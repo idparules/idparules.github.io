@@ -14,11 +14,17 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var CHAPTER_RE = /^#\s+(\d+)\s+(.+?)\s*$/;
-  var SECTION_RE = /^##\s+(\d+\.\d+)\s+(.+?)\s*$/;
+  // A numbering token is a plain number (rulebook: 2, 2.9.1), a capital letter
+  // (equipment appendix: A, A.1.3), or a letter-dash-number (match admin: M-1,
+  // M-1.6.1). The token grammar is shared by chapters, sections, and rules.
+  var TOKEN = '(?:\\d+|[A-Z](?:-\\d+)?)';
+  var CHAPTER_RE = new RegExp('^#\\s+(' + TOKEN + ')\\s+(.+?)\\s*$');
+  var SECTION_RE = new RegExp('^##\\s+(' + TOKEN + '\\.\\d+)\\s+(.+?)\\s*$');
   var CONTENTS_RE = /^##\s+Contents\s*$/i;
-  // A rule paragraph starts with a dotted number token: 1.1, 2.9.1, 2.9.1.1 …
-  var RULE_RE = /^(\d+(?:\.\d+)+)(?:\s+([\s\S]*))?$/;
+  // A rule paragraph starts with a dotted numbering token: 1.1, 2.9.1, A.1.3.17, M-2.7.1.1 …
+  var RULE_RE = new RegExp('^(' + TOKEN + '(?:\\.\\d+)+)(?:\\s+([\\s\\S]*))?$');
+  // A figure is a standalone Markdown image paragraph: ![caption](path)
+  var IMAGE_RE = /^!\[([^\]]*)\]\(([^()\s]+)\)\s*$/;
 
   // Split a document into blocks separated by one or more blank lines.
   function toBlocks(text) {
@@ -62,13 +68,14 @@
 
   // Parse Contents list entries out of the given blocks (heading + list blocks,
   // which the source separates with blank lines). Entries look like
-  // "2. SAFETY RULES — 4" (the "— <page>" pointer is stripped).
+  // "2. SAFETY RULES — 4" or "M-1. CLUBS" (the "— <page>" pointer is stripped).
+  var CONTENTS_ENTRY_RE = new RegExp('^(' + TOKEN + ')\\.\\s+(.+?)(?:\\s+—\\s+\\d+)?\\s*$');
   function parseContents(blocks, startIdx, endIdx) {
     var entries = [];
     for (var i = startIdx; i < endIdx; i++) {
       var block = blocks[i];
       for (var j = 0; j < block.length; j++) {
-        var m = block[j].match(/^(\d+)\.\s+(.+?)(?:\s+—\s+\d+)?\s*$/);
+        var m = block[j].match(CONTENTS_ENTRY_RE);
         if (m) entries.push({ number: m[1], title: m[2].trim() });
       }
     }
@@ -118,6 +125,7 @@
     var currentChapter = null;
     var currentSection = null;
     var preambleCounters = new Map(); // scopeKey -> count
+    var figureCounters = new Map();   // scopeKey -> count
 
     // Register a rule/preamble into the O(1) alignment map, disambiguating the
     // rare duplicate id (a known source artifact) with a "#dupN" suffix so both
@@ -167,7 +175,25 @@
         continue;
       }
 
-      // Everything from the first chapter on is either a rule or preamble prose.
+      // Everything from the first chapter on is a figure, a rule, or preamble prose.
+
+      // A standalone image paragraph → figure entry. The alt text is the caption
+      // (that's what gets diffed); the path is display-only, so a re-exported
+      // image with the same caption never counts as a change. Figures go into
+      // the same list as rules so they keep their true position in the document.
+      var im = block.length === 1 ? first.match(IMAGE_RE) : null;
+      if (im && currentChapter) {
+        var fsk = scopeKey();
+        var fcount = (figureCounters.get(fsk) || 0) + 1;
+        figureCounters.set(fsk, fcount);
+        var fid = fsk + '/figure-' + fcount;
+        var fentry = { id: fid, key: fid, text: im[1].trim(), src: im[2], raw: raw, type: 'figure' };
+        if (currentSection) currentSection.rules.push(fentry);
+        else currentChapter.preamble.push(fentry);
+        register(fentry);
+        continue;
+      }
+
       var rm = first.match(RULE_RE);
       if (rm) {
         var id = rm[1];
