@@ -27,7 +27,16 @@
       </div>
     </div>
 
-    <nav class="doc-tabs" id="doc-tabs" aria-label="Document"></nav>
+    <div class="doc-bar">
+      <nav class="doc-tabs" id="doc-tabs" aria-label="Document"></nav>
+      <div class="search-box" role="search">
+        <input type="search" id="search-input" placeholder="Search…  ( / )" aria-label="Search the document" autocomplete="off" spellcheck="false">
+        <span class="search-count" id="search-count" role="status" aria-live="polite"></span>
+        <button type="button" id="search-prev" class="btn-ghost" title="Previous match (Shift+Enter)" aria-label="Previous match">▲</button>
+        <button type="button" id="search-next" class="btn-ghost" title="Next match (Enter)" aria-label="Next match">▼</button>
+        <label class="search-only" title="Show only rules that contain the search term"><input type="checkbox" id="search-matches-only"> Only matches</label>
+      </div>
+    </div>
 
     <form class="controls" id="controls" aria-label="Comparison controls">
       <div class="control-group versions">
