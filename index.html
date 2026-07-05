@@ -12,11 +12,15 @@
     <div class="header-bar">
       <div class="header-row">
         <h1 id="app-title" role="button" tabindex="0" title="Reset to a fresh comparison">IDPA Rules</h1>
-        <p class="tagline">Read the rulebook. Spot what
+        <p class="tagline">Read the
+          <span class="doc-select-wrap"><select id="doc-select" class="doc-select" aria-label="Document"></select></span>.
+          Spot what
           <button type="button" id="show-changed" class="tagline-link"
-                  title="Compare the latest rulebook to the previous year">changed</button>.</p>
+                  title="Compare the latest version to the previous year">changed</button>.</p>
       </div>
       <div class="header-actions">
+        <button type="button" id="search-toggle" class="btn-ghost search-toggle"
+                aria-expanded="false" aria-controls="search-bar" title="Search the document ( / )">🔍 Search</button>
         <button type="button" id="settings-toggle" class="btn-ghost settings-toggle"
                 aria-expanded="false" aria-controls="controls" title="Show comparison settings">⚙ Settings</button>
         <div class="nav-buttons">
@@ -27,8 +31,7 @@
       </div>
     </div>
 
-    <div class="doc-bar">
-      <nav class="doc-tabs" id="doc-tabs" aria-label="Document"></nav>
+    <div class="doc-bar" id="search-bar">
       <div class="search-box" role="search">
         <input type="search" id="search-input" placeholder="Search…  ( / )" aria-label="Search the document" autocomplete="off" spellcheck="false">
         <button type="button" id="search-clear" class="search-clear" title="Clear search (Esc)" aria-label="Clear search">×</button>
